@@ -1,0 +1,30 @@
+# Elixir build artifacts
+/_build/
+deps/
+erl_crash.dump
+
+# ElixirLS (VSCode plugin)
+.elixir_ls/
+
+# Test coverage
+cover/
+*.coverdata
+
+# Dialyzer artifacts
+dialyxir.plt
+dialyxir.plt.hash
+
+# Compiled files
+*.beam
+*.ez
+
+# Editor/OS files
+*.swp
+*.swo
+.DS_Store
+.idea/
+.vscode/
+
+# Nix/Devshell
+.envrc
+.result/
