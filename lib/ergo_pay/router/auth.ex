@@ -16,7 +16,7 @@ defmodule ErgoPay.Router.Auth do
     json(conn, 200, %{})
   end
 
-  defp route(%Plug.Conn{method: "POST", body_params: list} = conn, id, "multiple") do
+  defp route(%Plug.Conn{method: "POST", body_params: %{"_json" => list}} = conn, id, "multiple") do
     cond do
       is_list(list) and list != [] ->
         first = hd(list)
