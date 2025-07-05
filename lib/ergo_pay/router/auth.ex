@@ -1,47 +1,81 @@
 defmodule ErgoPay.Router.Auth do
   import Plug.Conn
 
+  @spec handle(Plug.Conn.t()) :: Plug.Conn.t()
   def handle(conn) do
-    id = conn.params["id"]
-    addr = conn.params["address"]
+    id = conn.path_params["id"] || conn.params["id"]
+    addr = conn.path_params["address"] || conn.params["address"]
 
-    if id == nil do
-      json(conn, 400, %{message: "Missing id", messageSeverity: "ERROR"})
-    else
-      route(conn, id, addr)
-    end
-  end
-
-  defp route(conn, id, "multiple_check") do
-    json(conn, 200, %{})
-  end
-
-  defp route(%Plug.Conn{method: "POST", body_params: %{"_json" => list}} = conn, id, "multiple") do
     cond do
-      is_list(list) and list != [] ->
-        first = hd(list)
-        ErgoPay.Session.set(id, %{list: list, addr: first})
-        json(conn, 200, %{address: first})
+      id == nil ->
+        json(conn, 400, %{address: nil, message: "Missing id", messageSeverity: "ERROR"})
+
+      addr == "multiple_check" ->
+        json(conn, 200, %{
+          address: nil,
+          message: "multiple addresses supported",
+          messageSeverity: "INFORMATION"
+        })
+
+      addr == "multiple" and conn.method == "POST" ->
+        list = extract_list(conn.body_params)
+
+        cond do
+          is_list(list) and list != [] ->
+            first = hd(list)
+            ErgoPay.Session.set(id, %{list: list, addr: first})
+
+            json(conn, 200, %{
+              address: first,
+              message: "address list stored",
+              messageSeverity: "INFORMATION"
+            })
+
+          true ->
+            json(conn, 400, %{
+              address: nil,
+              message: "Invalid address list",
+              messageSeverity: "ERROR"
+            })
+        end
+
+      is_binary(addr) ->
+        ErgoPay.Session.set(id, %{addr: addr})
+
+        json(conn, 200, %{
+          address: addr,
+          message: "address received",
+          messageSeverity: "INFORMATION"
+        })
 
       true ->
-        json(conn, 400, %{message: "Invalid address list", messageSeverity: "ERROR"})
+        case ErgoPay.Session.get(id) do
+          nil ->
+            json(conn, 400, %{
+              address: nil,
+              message: "Not connected",
+              messageSeverity: "ERROR"
+            })
+
+          %{addr: a} ->
+            json(conn, 200, %{
+              address: a,
+              message: "connected",
+              messageSeverity: "INFORMATION"
+            })
+        end
     end
   end
 
-  defp route(conn, id, addr) when is_binary(addr) do
-    ErgoPay.Session.set(id, %{addr: addr})
-    json(conn, 200, %{address: addr})
-  end
-
-  defp route(conn, id, nil) do
-    case ErgoPay.Session.get(id) do
-      nil -> json(conn, 400, %{message: "Not connected", messageSeverity: "ERROR"})
-      %{addr: addr} -> json(conn, 200, %{address: addr})
-    end
-  end
+  # Plug wraps root-level JSON arrays in %{"_json" => list}
+  defp extract_list(%{"_json" => l}) when is_list(l), do: l
+  defp extract_list(l) when is_list(l), do: l
+  defp extract_list(_), do: nil
 
   defp json(conn, status, map) do
-    body = map |> Enum.reject(fn {_, v} -> v == nil end) |> Enum.into(%{}) |> Jason.encode!()
-    conn |> put_resp_content_type("application/json") |> send_resp(status, body) |> halt()
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(status, Jason.encode!(map))
+    |> halt()
   end
 end
