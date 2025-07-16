@@ -6,7 +6,6 @@ defmodule ErgoPay.Router.Auth do
     id = conn.path_params["id"] || conn.params["id"]
     addr = conn.path_params["address"] || conn.params["address"]
 
-    # Log incoming address info
     IO.puts("[AUTH REQUEST] id=#{inspect(id)} address=#{inspect(addr)} method=#{conn.method}")
 
     cond do
@@ -16,6 +15,7 @@ defmodule ErgoPay.Router.Auth do
 
       addr == "multiple_check" ->
         log_response(nil, "multiple addresses supported", "INFORMATION")
+
         json(conn, 200, %{
           address: nil,
           message: "multiple addresses supported",
@@ -27,8 +27,9 @@ defmodule ErgoPay.Router.Auth do
 
         cond do
           is_list(list) and list != [] ->
-            first = hd(list)
-            ErgoPay.Session.set(id, %{list: list, addr: first})
+            trimmed_list = if length(list) > 100, do: Enum.slice(list, -100, 100), else: list
+            first = hd(trimmed_list)
+            ErgoPay.Session.set(id, %{list: trimmed_list, addr: first})
             log_response(first, "address list stored", "INFORMATION")
 
             json(conn, 200, %{
@@ -39,6 +40,7 @@ defmodule ErgoPay.Router.Auth do
 
           true ->
             log_response(nil, "Invalid address list", "ERROR")
+
             json(conn, 400, %{
               address: nil,
               message: "Invalid address list",
@@ -60,19 +62,11 @@ defmodule ErgoPay.Router.Auth do
         case ErgoPay.Session.get(id) do
           nil ->
             log_response(nil, "Not connected", "ERROR")
-            json(conn, 400, %{
-              address: nil,
-              message: "Not connected",
-              messageSeverity: "ERROR"
-            })
+            json(conn, 400, %{address: nil, message: "Not connected", messageSeverity: "ERROR"})
 
           %{addr: a} ->
             log_response(a, "connected", "INFORMATION")
-            json(conn, 200, %{
-              address: a,
-              message: "connected",
-              messageSeverity: "INFORMATION"
-            })
+            json(conn, 200, %{address: a, message: "connected", messageSeverity: "INFORMATION"})
         end
     end
   end
