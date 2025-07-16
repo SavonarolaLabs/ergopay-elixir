@@ -11,6 +11,10 @@ defmodule ErgoPay.Router do
     send_resp(conn, 200, "ok")
   end
 
+  get "/pay" do
+    ErgoPay.Router.Pay.pay(conn)
+  end
+
   # No session id provided – will trigger "Missing id" error in handler
   match "/auth" do
     ErgoPay.Router.Auth.handle(conn)
