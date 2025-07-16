@@ -4,7 +4,8 @@ defmodule ErgoPay.Router.Pay do
   @project_dir Path.expand("../../../../ergfi", __DIR__)
   @script_path "src/lib/ergopay/ergopaySwap.cli.ts"
 
-  def pay(conn, params) do
+  def mobilepay(conn) do
+    params = conn.params
     swap_pair = params["swapPair"]
     amount = String.to_integer(params["amount"] || "0")
     e_pay_link_id = params["ePayLinkId"]
@@ -27,11 +28,8 @@ defmodule ErgoPay.Router.Pay do
     case System.cmd("sh", ["-c", command], stderr_to_stdout: true) do
       {stdout, 0} ->
         case Jason.decode(stdout) do
-          {:ok, result} ->
-            send_json(conn, 200, result)
-
-          {:error, reason} ->
-            send_error(conn, 500, "Invalid response from script", inspect(reason))
+          {:ok, result} -> send_json(conn, 200, result)
+          _ -> send_error(conn, 500, "Invalid response from script")
         end
 
       {stderr, _} ->
